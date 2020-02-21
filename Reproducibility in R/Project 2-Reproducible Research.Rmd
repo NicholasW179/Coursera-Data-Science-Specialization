@@ -1,0 +1,102 @@
+---
+title: "Project2- Analysis of deaths and damage from US storms"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+1. Synopsis:
+The goal of this assignment is to determine the damage done by weather through two ways:
+  1. The number of deaths that occur due to sever weather
+  2. Damage to crops and property that occurs due to severe weather
+For the sake of space, only the top 10 causes of harm will be examined in this report
+The first step is to download and unzip the contents of the dataset
+```{r}
+library(data.table)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+# download and unizp data file
+fileurl <- 'https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2'
+download.file(fileurl, destfile = paste0(getwd(), '/repdata%2Fdata%2FStormData.csv.bz2'))
+data <- read.csv('repdata%2Fdata%2FStormData.csv.bz2')
+# remove unimportant columns
+
+
+```
+Next we have to determine which columns to retain in the analysis and remove all others that are not important. This will also transform the factors in the exponential multipliers into numerical ones so proper calculations can be done.
+```{r}
+colnames(data) # name all columnN then select those of importance
+data <- data %>% select(c(EVTYPE, FATALITIES, INJURIES, PROPDMG, PROPDMGEXP, CROPDMG, CROPDMGEXP))
+data <- data %>% filter(EVTYPE != '?') 
+data <- data %>% filter( FATALITIES>0|INJURIES>0|PROPDMG>0|CROPDMG>0)
+# Convert Exponents into Numeric values
+data <- data %>% mutate_at(c('PROPDMGEXP', 'CROPDMGEXP'), toupper)
+propDmgKey <-  c("\"\"" = 10^0,
+                 "-" = 10^0, 
+                 "+" = 10^0,
+                 "0" = 10^0,
+                 "1" = 10^1,
+                 "2" = 10^2,
+                 "3" = 10^3,
+                 "4" = 10^4,
+                 "5" = 10^5,
+                 "6" = 10^6,
+                 "7" = 10^7,
+                 "8" = 10^8,
+                 "9" = 10^9,
+                 "H" = 10^2,
+                 "K" = 10^3,
+                 "M" = 10^6,
+                 "B" = 10^9)
+cropDmgKey <-  c("\"\"" = 10^0,
+                "?" = 10^0, 
+                "0" = 10^0,
+                "K" = 10^3,
+                "M" = 10^6,
+                "B" = 10^9)
+# Transform factors into numeric values
+data$propdmgexp.n <- propDmgKey[data$PROPDMGEXP]
+data$CROPDMGEXP.n <- cropDmgKey[data$CROPDMGEXP]
+data <- data %>% mutate(propdmgexp.n = replace_na(propdmgexp.n, 1))# this sets NA values to 1 sinc eno EXP multiplier
+data <- data %>% mutate(CROPDMGEXP.n = replace_na(CROPDMGEXP.n, 1))
+```
+# Transforming data to determine cost of damage and total injuries and fatalities #
+```{r}
+data$propcost <- data$PROPDMG*data$propdmgexp.n
+data$cropcost <- data$CROPDMG*data$CROPDMGEXP.n
+totalcost <- data %>% group_by(EVTYPE) %>% summarise(propcost = sum(propcost), cropcost = sum(cropcost), tot_cost = sum(propcost) + sum(cropcost))
+ 
+totalcost <- totalcost[order(-totalcost$tot_cost),]
+head(totalcost)
+top10dmg <- totalcost[1:10,]
+```
+# Now We calculate total costs of sever weather effects #
+```{r}
+totalinjuries <- data %>% group_by(EVTYPE) %>% summarise(fatalities = sum(FATALITIES), injuries = sum(INJURIES), total = sum(injuries)+sum(fatalities))
+totalinjuries <- totalinjuries[order(-totalinjuries$fatalities),]
+top10injuries <- totalinjuries[1:10,]
+```
+# Results: #
+#3.1: greatest health damage#
+```{r}
+top10injuries <- as.data.table(top10injuries)
+top10injuries <- melt(top10injuries, id.vars = 'EVTYPE', variable.name = 'Casualty')
+ggplot(top10injuries, aes(x = EVTYPE, y = value))+
+  geom_bar(stat = 'identity', aes(fill = Casualty), position = 'dodge')+
+  labs(x = 'Top 10 Most Dangerous', y = 'Number')+
+  theme(axis.text.x = element_text(angle=45, hjust=1))
+  
+```
+#3.2: Events with the most economice damage#
+```{r}
+top10dmg <- as.data.table(top10dmg)
+top10dmg <- melt(top10dmg, id.vars = 'EVTYPE', variable.name = 'Type.of.dmg')
+ggplot(top10dmg, aes(x = EVTYPE, y = value))+
+  geom_bar(stat = 'identity', aes(fill = Type.of.dmg), position = 'dodge')+
+  labs(x = 'Top 10 destroyers', y = 'Cost in $US')+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+# Results write up#
+As can be seen from the charts, the greatest economic damage comes from floods, followed by hurricanes, while the greatest cuases of injury or death come from tornados followed by excessive heat.The vast majority of economic damage that comes from sever weather can also be seen to be that done to property rather than agricultural loss.
