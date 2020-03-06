@@ -1,1 +1,12 @@
 
+This section contains the files for the third course getting and cleaning data. the codebook is as follows:
+
+tactivities: the activities in the training set
+tsubjects: the subject numbers in the training set
+train: initially the measurements, later combined with both tsubjects and tactivities 
+
+test_activity: the activities in the test set
+test_subject: the subject numbers in the test set
+test: combined measurements with activities and subject numbers
+
+combined: the full combination of train and test sets
