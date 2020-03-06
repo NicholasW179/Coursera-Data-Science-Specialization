@@ -1,0 +1,84 @@
+---
+title: "PML Project"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+trainingurl <- 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv'
+download.file(trainingurl, destfile = 'pml-training.csv')
+testingurl <- 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv'
+
+download.file(testingurl, destfile = 'pml-testing.csv')
+library(ggplot2); library(caret); library(randomForest); training <- read.csv('pml-training.csv')
+library(dplyr);library(tidyr); library(data.table); library(parallel); library(doParallel)
+head(training$classe); testing <- read.csv('pml-testing.csv')
+
+```
+First step is to remove anything that is na and anything that is not numeric in order to properly run machine learning algorithms
+
+```{r}
+classe <- training$classe
+filt <- grepl("belt|arm|dumbbell|classe", names(training))
+training <- training[, filt]
+testing <- testing[, filt]
+not_all_na <- function(x) any(!is.na(x))
+testing <- testing %>% select_if(not_all_na)
+
+change <- c(colnames(testing)[1:52], 'classe')
+training <- training %>% select(change)
+colnames(training)[colSums(is.na(training))>0]
+
+```
+All the NA values have been removed, good. Now the data needs to be cleaned to remove categorical values so only numerical values can remain for the analysis.
+```{r}
+#check for all numeric columns in the data frame, make sure to change classe to a true as well
+number <- lapply(training, is.numeric)
+number$classe <- TRUE
+colnames(testing)[53] <- 'classe'
+nearZeroVar(training[, -53])
+```
+Now that the data is properly cleaned, and we have confirmed there are no zero variance predictors, it is possible to use a rnadom forest to classify, and compare to some other methods in relation to accuracy.
+```{r}
+library(parallel); library(doParallel)
+set.seed(0)
+intrain <- createDataPartition(training$classe,
+                               p = 0.7, list = F)
+clust <- makeCluster(detectCores()-1)
+
+training <- training[intrain,]
+training_val <- training[-intrain,]
+
+#modfitrf <- train(classe ~., data = training, method = 'rf')
+#modfitrf
+#modfitsvm <- train(classe~., data = training, method = 'svmRadial')
+#modfitsvm
+#modfitgb <- train(classe~., training, method = 'gbm')
+#modfitgb
+# Take the most accurate of the models, and then use subset of training set, parallel helps speed up the processs
+```
+Models have been blanked out in order to cut down on time to printing as an html.Because the Random forest was the most accurate predictor, I decided to go with it instead of the other two. The gbm method came second, with the support vector machine in third place.This next section will also use the parallel package to speed up processing, and a confusion matrix to aid in determining model accuracy.
+```{r}
+registerDoParallel(clust)
+modcont <- trainControl(method = 'cv', number = 15, allowParallel = T)
+controlrf <- train(classe~., training_val, method = 'rf', trControl = modcont)
+controlrf
+stopCluster(clust)
+registerDoSEQ()
+# Confusion matrix to help with testing
+confmat <- confusionMatrix(table(training_val$classe, predict(controlrf, training_val)))
+confmat
+imp <- varImp(controlrf, scale = F)
+plot(imp)
+```
+According to the confusion matrix, the model got all the prediftions correct, which is quite impressive. This shows the extreme accuracy that can be attained by the use of random forests.Some importances have been plotted, but the interpretation of random forest models is known to be very difficult. The next step will be predicting the testing set we have been given to see the accuracy on data the model has never seen. Such a high accuracy can mean that the model is capturing both signal and noise
+```{r}
+pred <- predict(controlrf, testing)
+pred
+```
+
+
+
