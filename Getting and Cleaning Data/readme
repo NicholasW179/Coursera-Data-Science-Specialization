@@ -4,6 +4,7 @@ This section contains the files for the third course getting and cleaning data. 
 This code in run_analysis.r downloads the files from the internet, then uses regular expressions to pull the means and standard deviations.
 Then it pulls out the features wanted, and combines them into both training and test data. Finally it merges the files into a combined data set.
 
+Code book:
 tactivities: the activities in the training set
 tsubjects: the subject numbers in the training set
 train: initially the measurements, later combined with both tsubjects and tactivities 
