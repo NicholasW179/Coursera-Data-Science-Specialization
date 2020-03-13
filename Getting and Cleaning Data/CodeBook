@@ -13,3 +13,9 @@ test_subject: the subject numbers in the test set
 test: combined measurements with activities and subject numbers
 
 combined: the full combination of train and test sets
+The commands do the following:
+1. Download the files and unzip them
+2. Read in the appropriate datasets, and extract features wanted
+3. Combine the appropriate datasets into one training and one test file
+4. Merge the training and testing sets into one combined file.
+5. Create a tidy, smaller dataset with just the means
