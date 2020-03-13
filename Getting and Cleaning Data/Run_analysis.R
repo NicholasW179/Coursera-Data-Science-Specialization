@@ -2,7 +2,7 @@ fileurl <- 'https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%2
 download.file(fileurl, destfile = 'dataset.zip')
 unzip('dataset.zip')
 
-library(data.table); library(dplyr); library(dtplyr)
+library(data.table); library(dplyr); library(dtplyr); library(reshape2)
 
 activitylabels <- fread('UCI HAR Dataset/activity_labels.txt', col.names = c('classlabels', 'activityname' ))
 features <- fread('UCI HAR Dataset/features.txt', col.names = c('index', 'featurenames'))
@@ -22,4 +22,12 @@ test_activity <- fread('UCI HAR Dataset/test/y_test.txt', col.names = 'Activity'
 test_subjects <- fread('UCI HAR Dataset/test/subject_test.txt', col.names = 'Subject')
 test <- cbind(test, test_activity, test_subjects)
 combine <- rbind(train, test)
+
+combine[["Activity"]] <- factor(combine[, Activity]
+                                 , levels = activitylabels[["classlabels"]]
+                                 , labels = activitylabels[["activityname"]])
+
+combine[["Subject"]] <- as.factor(combine[, Subject])
+combine <- melt(data = combine, id = c("Subject", "Activity"))
+combine <- dcast(data = combine, Subject + Activity ~ variable, fun.aggregate = mean)
 write.table(combine, file = 'tidy.txt', quote = F)
